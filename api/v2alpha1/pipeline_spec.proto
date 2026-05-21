@@ -611,6 +611,9 @@ message PipelineTaskSpec {
 
   // Iterator related settings.
   IteratorPolicy iterator_policy = 12;
+
+  // If true, this task will run as a daemon (long-running/persistent).
+  bool daemon = 13;
 }
 
 // The spec of an artifact iterator. It supports fan-out a workflow from a list
