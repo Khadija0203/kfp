@@ -130,6 +130,10 @@ def build_task_spec_for_task(
         pipeline_task_spec.caching_options.cache_key = (
             task._task_spec.cache_key)
 
+    # Propagate daemon property if present
+    if hasattr(task, 'daemon'):
+        pipeline_task_spec.daemon = task.daemon
+
     if task._task_spec.retry_policy is not None:
         pipeline_task_spec.retry_policy.CopyFrom(
             task._task_spec.retry_policy.to_proto())

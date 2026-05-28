@@ -113,6 +113,8 @@ class PipelineTask:
         self.parent_task_group: Union[None, TasksGroup] = None
         args = args or {}
 
+        self._daemon = False
+
         for input_name, argument_value in args.items():
 
             if input_name not in component_spec.inputs:
@@ -191,6 +193,19 @@ class PipelineTask:
 
         if execute_locally:
             self._execute_locally(args=args)
+
+
+
+    @property
+    def daemon(self) -> bool:
+        """Whether this task is marked as a daemon."""
+        return self._daemon
+
+    def set_daemon(self, daemon: bool = True) -> 'PipelineTask':
+        """Marks this task as a daemon (long-running/persistent). Allows chaining."""
+        self._daemon = daemon
+        return self
+
 
     def _execute_locally(self, args: Dict[str, Any]) -> None:
         """Execute the pipeline task locally.
@@ -334,6 +349,7 @@ class PipelineTask:
         """Backwards-compatible wrapper for ``register_pipeline_channels``."""
         self.register_pipeline_channels(pipeline_channels)
 
+
     @block_if_final()
     def set_caching_options(self,
                             enable_caching: bool,
@@ -349,6 +365,19 @@ class PipelineTask:
         """
         self._task_spec.enable_caching = enable_caching
         self._task_spec.cache_key = cache_key
+        return self
+
+    @block_if_final()
+    def set_daemon(self, daemon: bool = True) -> 'PipelineTask':
+        """Marks this task as a daemon (long-running/persistent).
+
+        Args:
+            daemon: Whether to mark the task as daemon (default: True).
+
+        Returns:
+            Self return to allow chained setting calls.
+        """
+        self._task_spec.daemon = daemon
         return self
 
     def _ensure_container_spec_exists(self) -> None:

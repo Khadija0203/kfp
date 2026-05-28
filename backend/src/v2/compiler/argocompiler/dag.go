@@ -265,7 +265,17 @@ func (c *workflowCompiler) task(name string, task *pipelinespec.PipelineTaskSpec
 		// iterations belong to a sub-DAG, no need to add dependent tasks
 		// Also skip adding dependencies when it's an exit hook
 		if inputs.iterationIndex == "" && task.GetTriggerPolicy().GetStrategy().String() != "ALL_UPSTREAM_TASKS_COMPLETED" {
-			driver.Depends = depends(task.GetDependentTasks())
+			       // Build dependency map for driver: dep name -> isDaemon
+			       depMap := map[string]bool{}
+			       for _, dep := range task.GetDependentTasks() {
+				       upstreamTask, ok := c.spec.GetTasks()[dep]
+				       if ok && upstreamTask.GetDaemon() {
+					       depMap[dep] = true
+				       } else {
+					       depMap[dep] = false
+				       }
+			       }
+			       driver.Depends = dependsWithDaemon(depMap)
 		}
 		dag := c.dagTask(name, componentName, dagInputs{
 			parentDagID:     driverOutputs.executionID,
@@ -273,7 +283,8 @@ func (c *workflowCompiler) task(name string, task *pipelinespec.PipelineTaskSpec
 			hookParentDagID: inputs.parentDagID,
 			condition:       driverOutputs.condition,
 		})
-		dag.Depends = depends([]string{driverTaskName})
+			   // Driver is never daemon, so normal depends
+			   dag.Depends = dependsWithDaemon(map[string]bool{driverTaskName: false})
 		if task.GetTriggerPolicy().GetCondition() != "" {
 			dag.When = driverOutputs.condition + " != false"
 		}
@@ -312,7 +323,17 @@ func (c *workflowCompiler) task(name string, task *pipelinespec.PipelineTaskSpec
 			// iterations belong to a sub-DAG, no need to add dependent tasks
 			// Also skip adding dependencies when it's an exit hook
 			if inputs.iterationIndex == "" && task.GetTriggerPolicy().GetStrategy().String() != "ALL_UPSTREAM_TASKS_COMPLETED" {
-				driver.Depends = depends(task.GetDependentTasks())
+				       // Build dependency map for driver: dep name -> isDaemon
+				       depMap := map[string]bool{}
+				       for _, dep := range task.GetDependentTasks() {
+					       upstreamTask, ok := c.spec.GetTasks()[dep]
+					       if ok && upstreamTask.GetDaemon() {
+						       depMap[dep] = true
+					       } else {
+						       depMap[dep] = false
+					       }
+				       }
+				       driver.Depends = dependsWithDaemon(depMap)
 			}
 
 			// When using a dummy image, this means this task is for Kubernetes configs.
@@ -331,7 +352,7 @@ func (c *workflowCompiler) task(name string, task *pipelinespec.PipelineTaskSpec
 			if err != nil {
 				return nil, fmt.Errorf("error creating executor for %q: %v", name, err)
 			}
-			executor.Depends = depends([]string{driverTaskName})
+			   executor.Depends = dependsWithDaemon(map[string]bool{driverTaskName: false})
 			return []wfapi.DAGTask{*driver, *executor}, nil
 		case *pipelinespec.PipelineDeploymentConfig_ExecutorSpec_Importer:
 			if task.GetTriggerPolicy().GetCondition() != "" {
@@ -707,17 +728,25 @@ func addImplicitDependencies(dagSpec *pipelinespec.DagSpec) error {
 // is not what we want. Using enhanced depends, we can be strict that upstream
 // tasks must be succeeded.
 // https://argoproj.github.io/argo-workflows/enhanced-depends-logic/
-func depends(deps []string) string {
-	if len(deps) == 0 {
-		return ""
-	}
-	var builder strings.Builder
-	for index, dep := range deps {
-		if index > 0 {
-			builder.WriteString(" && ")
-		}
-		builder.WriteString(dep)
-		builder.WriteString(".Succeeded")
-	}
-	return builder.String()
+// dependsWithDaemon builds an enhanced depends string for argo, using .Running for daemon upstreams.
+// depsDaemon is a map from dependency name to isDaemon.
+func dependsWithDaemon(depsDaemon map[string]bool) string {
+       if len(depsDaemon) == 0 {
+	       return ""
+       }
+       var builder strings.Builder
+       i := 0
+       for dep, isDaemon := range depsDaemon {
+	       if i > 0 {
+		       builder.WriteString(" && ")
+	       }
+	       builder.WriteString(dep)
+	       if isDaemon {
+		       builder.WriteString(".Running")
+	       } else {
+		       builder.WriteString(".Succeeded")
+	       }
+	       i++
+       }
+       return builder.String()
 }

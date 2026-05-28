@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"strings"
 
+	"k8s.io/utils/pointer"
+
 	"github.com/kubeflow/pipelines/backend/src/v2/config"
 	"github.com/kubeflow/pipelines/backend/src/v2/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -428,6 +430,12 @@ func (c *workflowCompiler) addContainerExecutorTemplate(task *pipelinespec.Pipel
 			}},
 		},
 	}
+
+	// Set Daemon field if task is marked as daemon
+	if task.GetDaemon() {
+		container.Daemon = pointer.Bool(true)
+	}
+
 	c.templates[nameContainerExecutor] = container
 
 	args := []string{

@@ -1256,6 +1256,7 @@ type PipelineTaskSpec struct {
 	RetryPolicy *PipelineTaskSpec_RetryPolicy `protobuf:"bytes,11,opt,name=retry_policy,json=retryPolicy,proto3" json:"retry_policy,omitempty"`
 	// Iterator related settings.
 	IteratorPolicy *PipelineTaskSpec_IteratorPolicy `protobuf:"bytes,12,opt,name=iterator_policy,json=iteratorPolicy,proto3" json:"iterator_policy,omitempty"`
+	Daemon         bool
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1370,6 +1371,14 @@ func (x *PipelineTaskSpec) GetIteratorPolicy() *PipelineTaskSpec_IteratorPolicy 
 	}
 	return nil
 }
+
+func (x *PipelineTaskSpec) GetDaemon() bool {
+    if x != nil {
+        return x.Daemon
+    }
+    return false
+}
+
 
 type isPipelineTaskSpec_Iterator interface {
 	isPipelineTaskSpec_Iterator()
